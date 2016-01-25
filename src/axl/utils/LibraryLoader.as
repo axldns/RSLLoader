@@ -14,8 +14,6 @@ package axl.utils
 	import flash.system.LoaderContext;
 	import flash.system.Security;
 	import flash.utils.ByteArray;
-	import flash.utils.clearTimeout;
-	import flash.utils.setTimeout;
 
 	public class LibraryLoader
 	{
@@ -23,7 +21,6 @@ package axl.utils
 		private var rootObj:Object;
 		private var isLocal:Boolean;
 		private var classDict:Object;
-
 
 		public var onReady:Function;
 		public var libraryURLs:Object;
@@ -35,7 +32,11 @@ package axl.utils
 		private var params:Object;
 		private var lInfo:LoaderInfo;
 		private var getStageTimeout:uint;
-		protected var tname:String = '[LibraryLoader]';
+		protected var tname:String = '[LibraryLoader 0.0.1]';
+		
+		private var framesCounter:int;
+		public var framesAwaitingLimit:int = 30;
+		private var isLaunched:Boolean;
 		public function LibraryLoader(rootObject:Object)
 		{
 			rootObj = rootObject;
@@ -51,24 +52,69 @@ package axl.utils
 		}
 		private function findFilename():void
 		{
-			getStageTimeout= flash.utils.setTimeout(notFound,500);
-			if(rootObj.stage)
-				onStageAvailable();
+			trace(tname + '[findFilename]');
+			if(loaderInfoAvailable)
+				onLoaderInfoAvailable();
 			else
-				rootObj.addEventListener(Event.ADDED_TO_STAGE, onStageAvailable);
+				rootObj.addEventListener(Event.ENTER_FRAME, onEnterFrame);
+		}
+		private function get loaderInfoAvailable():Boolean { return rootObj.loaderInfo && rootObj.loaderInfo.url }
+		
+		private function onEnterFrame(e:*=null):void
+		{
+			if(loaderInfoAvailable)
+			{
+				rootObj.removeEventListener(Event.ENTER_FRAME, onEnterFrame);
+				onLoaderInfoAvailable()
+			}
+			else
+			{
+				if(++framesCounter < framesAwaitingLimit)
+					trace(rootObj + ' loaderInfoAvailable=false', framesCounter, '/', framesAwaitingLimit);
+				else
+				{
+					trace(rootObj, framesCounter, '/', framesAwaitingLimit, 'limit reached. loaderInfo property not found. ABORT');
+					rootObj.removeEventListener(Event.ENTER_FRAME, onEnterFrame);
+					isLaunched = false;
+				}
+			}
 		}
 		
-		private function onStageAvailable(e:Event=null):void
+		private function onLoaderInfoAvailable(e:Event=null):void
 		{
-			rootObj.removeEventListener(Event.ADDED_TO_STAGE, onStageAvailable);
-			flash.utils.clearTimeout(getStageTimeout);
-			trace(tname,'fileName:',fileName,'\nrootObj.loaderInfo.parameters.fileName:',  rootObj.loaderInfo.parameters.fileName,'\nrootObj.loaderInfo.url:',rootObj.loaderInfo.url);
+			trace(tname + '[onLoaderInfoAvailable]');
+			trace(tname + ' loaderInfo',rootObj.loaderInfo);
+			trace(tname + ' loaderInfo.url',rootObj.loaderInfo.url);
+			trace(tname + ' loaderInfo.parameters.fileName',rootObj.loaderInfo.parameters.fileName);
+			trace(tname + ' loaderInfo.parameters.loadedURL',rootObj.loaderInfo.parameters.loadedURL);
 			isLocal = rootObj.loaderInfo.url.match(/^(file|app):/i);
+			
+			if(rootObj.loaderInfo.parameters.loadedURL != null)
+			{
+				xfileName = fileNameFromUrl(rootObj.loaderInfo.url,true);
+				mergeLoadedURLtoLibraryURLs(rootObj.loaderInfo.parameters.loadedURL.substr(0,rootObj.loaderInfo.parameters.loadedURL.lastIndexOf('/')+1));
+			}
+			if(rootObj.loaderInfo.parameters.fileName != null)
+				xfileName = rootObj.loaderInfo.parameters.fileName;
+			
 			xfileName = fileName || rootObj.loaderInfo.parameters.fileName || fileNameFromUrl(rootObj.loaderInfo.url);
-			trace(tname,"filename =", fileName, 'local:', isLocal);
-			fileNameFound();
+						
+			trace(tname +" fileName =", fileName, 'isLocal:', isLocal);
+			fileNameFound()
 		}
-		private function notFound():void {trace(tname, "stage not found, filename unknown") }
+		
+		private function mergeLoadedURLtoLibraryURLs(v:String):void
+		{
+			for(var i:int = 0; i <  this.libraryURLs.length; i++)
+			{
+				var s:String = libraryURLs[i];
+				if(s.match(/^(\.\.\/|\/.\.\/)/))
+				{
+					libraryURLs[i] = v + libraryURLs[i];
+				}
+			}
+			trace(tname,'[MERGED] library URLs', this.libraryURLs);
+		}
 		
 		private function fileNameFound():void
 		{
@@ -111,7 +157,7 @@ package axl.utils
 				urlReq = new URLRequest();
 			}
 			urlReq.url = url + '?caheBust=' + String(new Date().time);
-			trace(tname,"loadURL",  urlReq.url );
+			trace(tname,"[loading]",  urlReq.url );
 			if(urlLoader == null)
 			{
 				urlLoader = new URLLoader(urlReq);
@@ -136,11 +182,12 @@ package axl.utils
 				params.fileName = fileName;
 				params.whatEver = "test";
 				context = new LoaderContext(false);
+				context.applicationDomain = new ApplicationDomain();
 				context.allowCodeImport = true;
 				context.parameters = params;
 			}
 			
-			trace(tname,"onURLComplete. Loadying bytes. context.parameters.fileName:", context.parameters.fileName);
+			trace(tname,"[LOADED]", urlReq.url);
 			libraryLoader.loadBytes(bytes, context);
 		}
 		
