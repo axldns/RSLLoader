@@ -79,7 +79,7 @@ package axl.utils
 		{
 			try { Security.allowDomain("*"); }
 			catch(e:*) { trace(tname, e)};
-			getLibrary(run);
+			getLibrary();
 		}
 		
 		private function run():void
@@ -88,11 +88,8 @@ package axl.utils
 				onReady();
 		}
 		
-		private function getLibrary(onReady:Function):void
+		private function getLibrary():void
 		{
-			for(var i:int,c:String='', a:Vector.<String> = ApplicationDomain.currentDomain.getQualifiedDefinitionNames(); i < a.length; i++)
-				c+='\n'+i+': '+a[i];
-			
 			URLIndex = -1;
 			loadNext();
 		}
@@ -134,7 +131,6 @@ package axl.utils
 				lInfo = libraryLoader.contentLoaderInfo;
 				lInfo.uncaughtErrorEvents.addEventListener(UncaughtErrorEvent.UNCAUGHT_ERROR, onError);
 				this.addListeners(lInfo,onLoaderComplete,onError);
-				
 					
 				params = new Object();
 				params.fileName = fileName;
@@ -163,33 +159,29 @@ package axl.utils
 			var n:String='';
 			var cn:String;
 			var cls:Class;
+			var mapped:int = 0;
 			if(!classDict)
 				classDict = {}
 			for(var i:int =0; i <len; i++)
 			{
 				cn = an[i];
+				mapped++;
 				try {
 					cls = libraryLoader.contentLoaderInfo.applicationDomain.getDefinition(cn) as Class;
 					cn = cn.substr(cn.lastIndexOf(':')+1);
 					classDict[cn] = cls;
 					n+='\n'+i+': '+cn;
+					
 				}
 				catch(e:*)
 				{
 					n+= '\n' + cn + " can not be included" +  e;
+					mapped--;
 				}
-				
 			}
-			if(classDict.U)
-			{
-				classDict.U.log(this,"[LIBRARY LOADED-CLASSES MAPPED]. VERSION:\nAXL -", 
-					classDict.U.version, classDict.xRoot ? "\nAXLX -" + classDict.xRoot.version : "");
-				onReady();
-			}
-			else
-			{
-				trace(tname,"[FATAL ERROR]: class U not mapped");
-			}
+			trace(tname,"[MAPPED]", mapped, '/', len, 'Classes form loaded library ApplicationDomain');
+			onReady();
+		
 		}
 		
 		private function onError(e:*=null):void
