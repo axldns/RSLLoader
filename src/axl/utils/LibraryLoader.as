@@ -14,6 +14,7 @@ package axl.utils
 	import flash.system.LoaderContext;
 	import flash.system.Security;
 	import flash.utils.ByteArray;
+	import flash.utils.describeType;
 
 	public class LibraryLoader
 	{
@@ -22,7 +23,7 @@ package axl.utils
 		private var isLocal:Boolean;
 		private var classDict:Object;
 
-		private var libraryLoader:Loader;
+		private var xlibraryLoader:Loader;
 		private var urlLoader:URLLoader;
 		private var urlReq:URLRequest;
 		private var URLIndex:int;
@@ -30,18 +31,22 @@ package axl.utils
 		private var params:Object;
 		private var lInfo:LoaderInfo;
 		private var getStageTimeout:uint;
-		protected var tname:String = '[LibraryLoader 0.0.2]';
+		protected var tname:String = '[LibraryLoader 0.0.4]';
 		
 		private var framesCounter:int;
 		private var isLaunched:Boolean;
 		private var xloadedContentLoadderInfo:LoaderInfo;
 		private var xisLOADING:Boolean;
 		
-		
+		public function get bytes():ByteArray {	return xbytes }
+		public function get libraryLoader():Loader { return xlibraryLoader}
+
+
 		public var onReady:Function;
 		public var libraryURLs:Object;
 		public var framesAwaitingLimit:int = 30;
 		public var getFromCurrentAppDomainIfPresent:Array;
+		public var mapOnlyClasses:Array;
 		/** Loads library to specific application domain according the rule:
 		 * <ul>
 		 * <li><b>negative values</b> (default): new ApplicationDomain(ApplicationDomain.currentDomain) - This allows the loaded SWF file to use the parent's classes directly, 
@@ -57,6 +62,9 @@ package axl.utils
 		 * </ul>
 		 * */
 		public var domainType:int = -1;
+		private var xbytes:ByteArray;
+		public var onNewVersion:Function;
+		public var currentLibraryVersion:String;
 		
 		public function LibraryLoader(rootObject:Object)
 		{
@@ -155,8 +163,28 @@ package axl.utils
 		
 		private function run():void
 		{
+			trace(tname, '[READY]');
+			dealWithLoadedLibraryVersions();			
 			if(onReady)
 				onReady();
+		}
+		
+		private function dealWithLoadedLibraryVersions():void
+		{
+			trace('dealWithLoadedLibraryVersions', libraryLoader, libraryLoader.content ?  libraryLoader.content.hasOwnProperty('VERSION') : false);
+			if(libraryLoader && libraryLoader.content && libraryLoader.content.hasOwnProperty('VERSION'))
+			{
+				var v:String = libraryLoader.content['VERSION']; 
+				trace(tname, '[VERSION of loaded library]:', v, '(against',currentLibraryVersion,')');
+				if(currentLibraryVersion is String && (v != currentLibraryVersion))
+				{
+					trace("..which is new comparing to", currentLibraryVersion);
+					if(onNewVersion is Function)
+						onNewVersion();
+					if(libraryLoader.content.hasOwnProperty('onVersionUpdate') && libraryLoader.content['onVersionUpdate'] is Function)
+						libraryLoader.content['onVersionUpdate'](v);
+				}
+			}
 		}
 		
 		private function getLibrary():void
@@ -202,7 +230,21 @@ package axl.utils
 		{
 			if(++URLIndex < libraryURLs.length)
 			{
-				loadURL(libraryURLs[URLIndex]);
+				var o:* =libraryURLs[URLIndex];
+				if(o is String)
+					loadURL(o);
+				else if(o is Class)
+				{
+					trace("LOADING FROM BYTES");
+					
+					loadFromBytes(new o);
+				}
+				else
+				{
+					trace("UNKNOWN RESOURCE LISTED @ libraryURLs[", URLIndex, "]", flash.utils.describeType(o));
+					loadNext();
+				}
+				
 			}
 			else
 			{
@@ -230,15 +272,20 @@ package axl.utils
 		
 		private function onURLComplete(e:Event):void
 		{
-			var bytes:ByteArray =urlLoader.data;
+			xbytes =  urlLoader.data;
+			loadFromBytes(xbytes);
+		}
+		
+		private function loadFromBytes(ba:ByteArray):void
+		{
 			if(libraryLoader == null)
 			{
-				libraryLoader = new Loader();
+				xlibraryLoader = new Loader();
 				
 				lInfo = libraryLoader.contentLoaderInfo;
 				lInfo.uncaughtErrorEvents.addEventListener(UncaughtErrorEvent.UNCAUGHT_ERROR, onError);
 				this.addListeners(lInfo,onLoaderComplete,onError);
-					
+				
 				params = new Object();
 				params.fileName = fileName;
 				params.whatEver = "test";
@@ -262,8 +309,8 @@ package axl.utils
 				context.parameters = params;
 			}
 			
-			trace(tname,"[LOADED]", urlReq.url);
-			libraryLoader.loadBytes(bytes, context);
+			trace(tname,"[LOADED]", libraryURLs[URLIndex]);
+			libraryLoader.loadBytes(ba, context);
 		}
 		
 		private function onLoaderComplete(e:Event):void 
@@ -276,17 +323,19 @@ package axl.utils
 		private function mapClasses(domain:ApplicationDomain):void
 		{
 			trace(tname, 'mapClasses');
-			var an:Vector.<String> = domain.getQualifiedDefinitionNames();
-			var len:int = an.length;
+			var limited:Boolean = mapOnlyClasses is Array;
+			var targ:Object = limited ? mapOnlyClasses : domain.getQualifiedDefinitionNames();
+			var len:int = limited ? mapOnlyClasses.length : targ.length;
 			var n:String='';
 			var cn:String;
 			var cls:Class;
 			var mapped:int = 0;
 			if(!classDict)
-				classDict = {}
+				classDict = {};
+			
 			for(var i:int =0; i <len; i++)
 			{
-				cn = an[i];
+				cn = targ[i];
 				mapped++;
 				try {
 					cls = domain.getDefinition(cn) as Class;
@@ -332,12 +381,17 @@ package axl.utils
 			dispatcher.removeEventListener(Event.COMPLETE, onUrlLoaderComplete);
 		}
 		
-		private function destroy():void
+		private function destroy(clearBytes:Boolean=false):void
 		{
 			trace(tname, 'destroy');
 			removeListeners(libraryLoader, onLoaderComplete, onError);
 			removeListeners(urlLoader, onURLComplete, onError);
-			libraryLoader = null;
+			//libraryLoader;
+			if(bytes && clearBytes)
+			{
+				bytes.clear();
+				xbytes = null;
+			}
 			urlLoader = null;
 			if(lInfo)
 				lInfo.uncaughtErrorEvents.removeEventListener(UncaughtErrorEvent.UNCAUGHT_ERROR, onError);
