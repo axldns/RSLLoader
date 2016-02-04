@@ -175,12 +175,12 @@ package axl.utils
 			if(libraryLoader && libraryLoader.content && libraryLoader.content.hasOwnProperty('VERSION'))
 			{
 				var v:String = libraryLoader.content['VERSION']; 
-				trace(tname, '[VERSION of loaded library]:', v, '(against',currentLibraryVersion,')');
+				trace(tname, '[VERSION of loaded library]:', v, '(against',currentLibraryVersion +')');
 				if(currentLibraryVersion is String && (v != currentLibraryVersion))
 				{
 					trace("..which is new comparing to", currentLibraryVersion);
 					if(onNewVersion is Function)
-						onNewVersion();
+						onNewVersion(v);
 					if(libraryLoader.content.hasOwnProperty('onVersionUpdate') && libraryLoader.content['onVersionUpdate'] is Function)
 						libraryLoader.content['onVersionUpdate'](v);
 				}
