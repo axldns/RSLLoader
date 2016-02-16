@@ -31,7 +31,7 @@ package axl.utils
 		private var params:Object;
 		private var lInfo:LoaderInfo;
 		private var getStageTimeout:uint;
-		protected var tname:String = '[LibraryLoader 0.0.4]';
+		protected var tname:String = '[LibraryLoader 0.0.7]';
 		
 		private var framesCounter:int;
 		private var isLaunched:Boolean;
@@ -146,7 +146,7 @@ package axl.utils
 					libraryURLs[i] = v + libraryURLs[i];
 				}
 			}
-			trace(tname,'[MERGED] library URLs', this.libraryURLs);
+			trace(tname,'[Merge library URLs]', this.libraryURLs);
 		}
 		
 		private function fileNameFound():void
@@ -163,7 +163,6 @@ package axl.utils
 		
 		private function run():void
 		{
-			trace(tname, '[READY]');
 			dealWithLoadedLibraryVersions();			
 			if(onReady)
 				onReady();
@@ -171,7 +170,7 @@ package axl.utils
 		
 		private function dealWithLoadedLibraryVersions():void
 		{
-			trace('dealWithLoadedLibraryVersions', libraryLoader, libraryLoader.content ?  libraryLoader.content.hasOwnProperty('VERSION') : false);
+			trace('dealWithLoadedLibraryVersions', libraryLoader, libraryLoader && libraryLoader.content ?  libraryLoader.content.hasOwnProperty('VERSION') : false);
 			if(libraryLoader && libraryLoader.content && libraryLoader.content.hasOwnProperty('VERSION'))
 			{
 				var v:String = libraryLoader.content['VERSION']; 
@@ -220,6 +219,7 @@ package axl.utils
 		
 		private function finalize(domain:ApplicationDomain=null):void
 		{
+			trace(tname + '[READY]' + '['+xfileName+'][' + libraryURLs[URLIndex] + ']');
 			domain ? mapClasses(domain) : null
 			xisLOADING = false;
 			run();
@@ -259,7 +259,7 @@ package axl.utils
 			{
 				urlReq = new URLRequest();
 			}
-			urlReq.url = url + '?caheBust=' + String(new Date().time);
+			urlReq.url = url + (isLocal ? "":'?caheBust=' + String(new Date().time));
 			trace(tname,"[loading]",  urlReq.url );
 			if(urlLoader == null)
 			{
@@ -354,8 +354,14 @@ package axl.utils
 			trace(tname,"[MAPPED]", mapped, '/', len, 'Classes form loaded library ApplicationDomain', mapped < len ? n :"");
 		}
 		
-		private function onError(e:*=null):void
+		private function onError(e:Object=null):void
 		{
+			if(e && e.hasOwnProperty('stopImmediatePropagation'))
+			{
+				trace("STOPPING PROPAGATION");
+				e.stopImmediatePropagation();
+				e.preventDefault();
+			}
 			trace(tname,"[CAN'T LOAD LIBRARY]", urlReq.url, "\n", e);
 			if(libraryLoader)
 			{
