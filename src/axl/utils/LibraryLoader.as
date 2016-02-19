@@ -15,14 +15,24 @@ package axl.utils
 	import flash.system.Security;
 	import flash.utils.ByteArray;
 	import flash.utils.describeType;
-
+	/** This class loads anything you specify in <code>libraryURLs</code> to the ApplicationDomain you specify in <code>domainType</code> via <code>domain</code>
+	 * <br> e.g. <code>instance.domainType = instance.domain.coppyOfCurrent</code><br>
+	 * <br>Once ready it will execute <code>instance.onReady</code> callback if set.
+	 *  <br>Once onReady is called, you can access several properties of loaded content<br>
+	 * <ul>
+	 * <li>instance.bytes</li>
+	 * <li>instance.libraryLoader</li>
+	 * <li>instance.classDictionary</li>
+	 * <li>instance.loadedContentLoadderInfo</li>
+	 * </ul>
+	 * */
 	public class LibraryLoader
 	{
 		private var xfileName:String;
 		private var rootObj:Object;
 		private var isLocal:Boolean;
 		private var classDict:Object;
-
+		
 		private var xlibraryLoader:Loader;
 		private var urlLoader:URLLoader;
 		private var urlReq:URLRequest;
@@ -31,50 +41,43 @@ package axl.utils
 		private var params:Object;
 		private var lInfo:LoaderInfo;
 		private var getStageTimeout:uint;
-		protected var tname:String = '[LibraryLoader 0.0.7]';
+		protected var tname:String = '[LibraryLoader 0.0.12]';
 		
 		private var framesCounter:int;
 		private var isLaunched:Boolean;
 		private var xloadedContentLoadderInfo:LoaderInfo;
 		private var xisLOADING:Boolean;
 		
-		public function get bytes():ByteArray {	return xbytes }
-		public function get libraryLoader():Loader { return xlibraryLoader}
-
-
+		public var domain:DomainType = new DomainType();
+		
 		public var onReady:Function;
 		public var libraryURLs:Object;
 		public var framesAwaitingLimit:int = 30;
 		public var getFromCurrentAppDomainIfPresent:Array;
 		public var mapOnlyClasses:Array;
-		/** Loads library to specific application domain according the rule:
-		 * <ul>
-		 * <li><b>negative values</b> (default): new ApplicationDomain(ApplicationDomain.currentDomain) - This allows the loaded SWF file to use the parent's classes directly, 
-		 * for example by writing new MyClassDefinedInParent(). The parent, however, cannot use this syntax; if the parent wishes 
-		 * to use the child's classes, it must call ApplicationDomain.getDefinition() to retrieve them. The advantage of this choice is that, 
-		 * if the child defines a class with the same name as a class already defined by the parent, no error results; the child simply 
-		 * inherits the parent's definition of that class, and the child's conflicting definition goes unused unless either child or parent 
-		 * calls the ApplicationDomain.getDefinition() method to retrieve it.</li>
-		 * <li><b>0 value</b>: ApplicationDomain.currentDomain - When the load is complete, parent and child can use each other's classes directly.
-		 * If the child attempts to define a class with the same name as a class already defined by the parent, the parent class is used and the child class is ignored.
-		 * <li><b>positive values</b>: new ApplicationDomain(null) - This separates loader and loadee entirely, allowing them to define separate versions of classes 
-		 * with the same name without conflict or overshadowing. The only way either side sees the other's classes is by calling the ApplicationDomain.getDefinition() method.</li>
-		 * </ul>
+		/**
+		 * Use <code>instance.domain</code> to set it. Eg.:<br>
+		 * <code>instance.domainType = instance.domain.coppyOfCurrent</code><br>
 		 * */
-		public var domainType:int = -1;
+		public var domainType:Object = domain.coppyOfCurrent;
 		private var xbytes:ByteArray;
 		public var onNewVersion:Function;
 		public var currentLibraryVersion:String;
-		
+		/** @see LibraryLoader */
 		public function LibraryLoader(rootObject:Object)
 		{
 			rootObj = rootObject;
-			trace(tname, '[CONSTRUCTOR]Root:', rootObj, rootObj ? rootObj.loaderInfo : ':(');
+			tname= rootObj+tname;
+			
+			trace(tname, '[CONSTRUCTOR]', rootObj ? rootObj.loaderInfo : 'root Object lodaerInfo not available yet');
 		}
 		public function get loadedContentLoadderInfo():LoaderInfo { return xloadedContentLoadderInfo }
 		public function get isLOADING():Boolean {return xisLOADING }
 		public function get fileName():String { return xfileName}
 		public function get classDictionary():Object { return classDict }
+		public function get bytes():ByteArray {	return xbytes }
+		public function get libraryLoader():Loader { return xlibraryLoader}
+		
 		public function load():void
 		{
 			if(isLOADING)
@@ -290,21 +293,43 @@ package axl.utils
 				params.fileName = fileName;
 				params.whatEver = "test";
 				context = new LoaderContext(false);
-				if(domainType < 0)
+				
+				if(domainType is ApplicationDomain)
 				{
-					context.applicationDomain = new ApplicationDomain(ApplicationDomain.currentDomain);
-					trace(tname,"LOADING TO COPY OF CURRENT APPLICATION DOMAIN (loaded content can use parent classes, parent can't use childs classes other way than via class dict)")
+					context.applicationDomain = domainType as ApplicationDomain;
+					trace(tname,"LOADING TO SPECIFIC APPLICATION DOMAIN");
 				}
-				else if(domainType > 0 )
+				else
 				{
-					context.applicationDomain = new ApplicationDomain(null);
-					trace(tname,"LOADING TO BRAND NEW APPLICATION DOMAIN (loaded content can't use parent's classes, parent can't use childs classes other way than via class dict. Watch your fonts.")
+					switch(domainType)
+					{
+						case domain.coppyOfCurrent:
+							context.applicationDomain = new ApplicationDomain(ApplicationDomain.currentDomain);
+							trace(tname,"LOADING TO COPY OF CURRENT APPLICATION DOMAIN (loaded content can use parent classes, parent can't use childs classes other way than via class dict)")
+							break;
+						case domain.current:
+							context.applicationDomain = ApplicationDomain.currentDomain;
+							trace(tname,"LOADING TO CURRENT APPLICATION DOMAIN (all shared, conflicts may occur)");
+							break;
+						case domain.separated:
+							context.applicationDomain = new ApplicationDomain(null);
+							trace(tname,"LOADING TO BRAND NEW APPLICATION DOMAIN (loaded content can't use parent's classes, parent can't use childs classes other way than via class dict. Watch your fonts.");
+							break;
+						case domain.loaderOwnerDomain:
+							context.applicationDomain = rootObj.loaderInfo.applicationDomain;
+							trace(tname,"LOADING TO loaderOwnerDomain DOMAIN.");
+							break;
+						case domain.copyOfLoaderOwnerDomain:
+							context.applicationDomain = new ApplicationDomain(rootObj.loaderInfo.applicationDomain);
+							trace(tname,"LOADING TO copyOfLoaderOwnerDomain DOMAIN.");
+							break;
+						default:
+							context.applicationDomain =  lInfo.applicationDomain;
+							trace(tname,"LOADING TO loadee application domain?");
+							break
+					}
 				}
-				else if(domainType == 0)
-				{
-					context.applicationDomain = ApplicationDomain.currentDomain;
-					trace(tname,"LOADING TO CURRENT APPLICATION DOMAIN (all shared, conflicts may occur)")
-				}
+				
 				context.allowCodeImport = true;
 				context.parameters = params;
 			}
@@ -351,14 +376,13 @@ package axl.utils
 					mapped--;
 				}
 			}
-			trace(tname,"[MAPPED]", mapped, '/', len, 'Classes form loaded library ApplicationDomain', mapped < len ? n :"");
+			trace(tname,"[MAPPED]", mapped, '/', len, 'Classes form loaded library ApplicationDomain', mapped < len ? n :n);
 		}
 		
 		private function onError(e:Object=null):void
 		{
 			if(e && e.hasOwnProperty('stopImmediatePropagation'))
 			{
-				trace("STOPPING PROPAGATION");
 				e.stopImmediatePropagation();
 				e.preventDefault();
 			}
@@ -416,4 +440,14 @@ package axl.utils
 			return removeExtension ? fileName.replace(/.\w+$/i, "") : fileName;
 		}
 	}
+}
+import flash.system.ApplicationDomain;
+
+internal class DomainType {
+	public const coppyOfCurrent:int = -1;
+	public const current:int = 0;
+	public const separated:int = 1;
+	public const loaderOwnerDomain:int = 2;
+	public const copyOfLoaderOwnerDomain:int = 3;
+	public function specific(v:ApplicationDomain):ApplicationDomain { return v}
 }
