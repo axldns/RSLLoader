@@ -38,15 +38,18 @@ package axl.utils
 		private var urlReq:URLRequest;
 		private var URLIndex:int;
 		private var context:LoaderContext;
+		private var xbytes:ByteArray;
 		private var params:Object;
 		private var lInfo:LoaderInfo;
 		private var getStageTimeout:uint;
-		protected var tname:String = '[LibraryLoader 0.0.12]';
+		protected var tname:String = '[LibraryLoader 0.0.13]';
 		
 		private var framesCounter:int;
 		private var isLaunched:Boolean;
 		private var xloadedContentLoadderInfo:LoaderInfo;
 		private var xisLOADING:Boolean;
+		private var xerror:Boolean;
+		
 		
 		public var domain:DomainType = new DomainType();
 		
@@ -60,16 +63,24 @@ package axl.utils
 		 * <code>instance.domainType = instance.domain.coppyOfCurrent</code><br>
 		 * */
 		public var domainType:Object = domain.coppyOfCurrent;
-		private var xbytes:ByteArray;
+		public var contextParameters:Object;
+		
 		public var onNewVersion:Function;
 		public var currentLibraryVersion:String;
+		public var log:Function;
+		public var handleUncaughtErrors:Boolean=true;
+		public var stopErrorPropagation:Boolean=false;
+		public var unloadOnErrors:Boolean=true;
+		public var preventErrorDefaults:Boolean=true;
+		
 		/** @see LibraryLoader */
-		public function LibraryLoader(rootObject:Object)
+		public function LibraryLoader(rootObject:Object,loggingFunc:Function=null)
 		{
 			rootObj = rootObject;
 			tname= rootObj+tname;
+			log = loggingFunc || trace;
 			
-			trace(tname, '[CONSTRUCTOR]', rootObj ? rootObj.loaderInfo : 'root Object lodaerInfo not available yet');
+			log(tname, '[CONSTRUCTOR]', rootObj ? rootObj.loaderInfo : 'root Object lodaerInfo not available yet');
 		}
 		public function get loadedContentLoadderInfo():LoaderInfo { return xloadedContentLoadderInfo }
 		public function get isLOADING():Boolean {return xisLOADING }
@@ -77,7 +88,7 @@ package axl.utils
 		public function get classDictionary():Object { return classDict }
 		public function get bytes():ByteArray {	return xbytes }
 		public function get libraryLoader():Loader { return xlibraryLoader}
-		
+		public function get error():Boolean { return xerror }
 		public function load():void
 		{
 			if(isLOADING)
@@ -85,11 +96,12 @@ package axl.utils
 			if(libraryURLs==null || libraryURLs.length < 1)
 				throw new Error("Set libraryURLs variable before loading");
 			xisLOADING = true;
+			xerror = false;
 			findFilename();
 		}
 		private function findFilename():void
 		{
-			trace(tname + '[findFilename]');
+			log(tname + '[findFilename]');
 			if(loaderInfoAvailable)
 				onLoaderInfoAvailable();
 			else
@@ -107,10 +119,10 @@ package axl.utils
 			else
 			{
 				if(++framesCounter < framesAwaitingLimit)
-					trace(rootObj + ' loaderInfoAvailable=false', framesCounter, '/', framesAwaitingLimit);
+					log(rootObj + ' loaderInfoAvailable=false', framesCounter, '/', framesAwaitingLimit);
 				else
 				{
-					trace(rootObj, framesCounter, '/', framesAwaitingLimit, 'limit reached. loaderInfo property not found. ABORT');
+					log(rootObj, framesCounter, '/', framesAwaitingLimit, 'limit reached. loaderInfo property not found. ABORT');
 					rootObj.removeEventListener(Event.ENTER_FRAME, onEnterFrame);
 					isLaunched = false;
 				}
@@ -119,11 +131,11 @@ package axl.utils
 		
 		private function onLoaderInfoAvailable(e:Event=null):void
 		{
-			trace(tname + '[onLoaderInfoAvailable]');
-			trace(tname + ' loaderInfo',rootObj.loaderInfo);
-			trace(tname + ' loaderInfo.url',rootObj.loaderInfo.url);
-			trace(tname + ' loaderInfo.parameters.fileName',rootObj.loaderInfo.parameters.fileName);
-			trace(tname + ' loaderInfo.parameters.loadedURL',rootObj.loaderInfo.parameters.loadedURL);
+			log(tname + '[onLoaderInfoAvailable]');
+			log(tname + ' loaderInfo',rootObj.loaderInfo);
+			log(tname + ' loaderInfo.url',rootObj.loaderInfo.url);
+			log(tname + ' loaderInfo.parameters.fileName',rootObj.loaderInfo.parameters.fileName);
+			log(tname + ' loaderInfo.parameters.loadedURL',rootObj.loaderInfo.parameters.loadedURL);
 			isLocal = rootObj.loaderInfo.url.match(/^(file|app):/i);
 			
 			if(rootObj.loaderInfo.parameters.loadedURL != null)
@@ -135,7 +147,7 @@ package axl.utils
 				xfileName = rootObj.loaderInfo.parameters.fileName;
 			
 			xfileName = fileName || rootObj.loaderInfo.parameters.fileName || fileNameFromUrl(rootObj.loaderInfo.url);
-			trace(tname +" fileName =", fileName, 'isLocal:', isLocal);
+			log(tname +" fileName =", fileName, 'isLocal:', isLocal);
 			fileNameFound()
 		}
 		
@@ -149,7 +161,7 @@ package axl.utils
 					libraryURLs[i] = v + libraryURLs[i];
 				}
 			}
-			trace(tname,'[Merge library URLs]', this.libraryURLs);
+			log(tname,'[Merge library URLs]', this.libraryURLs);
 		}
 		
 		private function fileNameFound():void
@@ -160,27 +172,28 @@ package axl.utils
 		private function runApp():void
 		{
 			try { Security.allowDomain("*"); }
-			catch(e:*) { trace(tname, e)};
+			catch(e:*) { log(tname, e)};
 			getLibrary();
 		}
 		
 		private function run():void
 		{
-			dealWithLoadedLibraryVersions();			
+			if(!error)
+				dealWithLoadedLibraryVersions();			
 			if(onReady)
 				onReady();
 		}
 		
 		private function dealWithLoadedLibraryVersions():void
 		{
-			trace('dealWithLoadedLibraryVersions', libraryLoader, libraryLoader && libraryLoader.content ?  libraryLoader.content.hasOwnProperty('VERSION') : false);
+			//log('dealWithLoadedLibraryVersions', libraryLoader, libraryLoader && libraryLoader.content ?  libraryLoader.content.hasOwnProperty('VERSION') : false);
 			if(libraryLoader && libraryLoader.content && libraryLoader.content.hasOwnProperty('VERSION'))
 			{
 				var v:String = libraryLoader.content['VERSION']; 
-				trace(tname, '[VERSION of loaded library]:', v, '(against',currentLibraryVersion +')');
+				log(tname, '[VERSION of loaded library]:', v, '(against',currentLibraryVersion +')');
 				if(currentLibraryVersion is String && (v != currentLibraryVersion))
 				{
-					trace("..which is new comparing to", currentLibraryVersion);
+					log("..which is new comparing to", currentLibraryVersion);
 					if(onNewVersion is Function)
 						onNewVersion(v);
 					if(libraryLoader.content.hasOwnProperty('onVersionUpdate') && libraryLoader.content['onVersionUpdate'] is Function)
@@ -210,7 +223,7 @@ package axl.utils
 			}
 			if(foundAll)
 			{
-				trace("All classes found in current domain, no need to laod. Mapping");
+				log("All classes found in current domain, no need to laod. Mapping");
 				finalize(ApplicationDomain.currentDomain);
 			}
 			else
@@ -222,7 +235,7 @@ package axl.utils
 		
 		private function finalize(domain:ApplicationDomain=null):void
 		{
-			trace(tname + '[READY]' + '['+xfileName+'][' + libraryURLs[URLIndex] + ']');
+			log(tname + '[READY]' + '['+xfileName+'][' + libraryURLs[URLIndex] + ']');
 			domain ? mapClasses(domain) : null
 			xisLOADING = false;
 			run();
@@ -238,24 +251,23 @@ package axl.utils
 					loadURL(o);
 				else if(o is Class)
 				{
-					trace("LOADING FROM BYTES");
+					log("LOADING FROM BYTES");
 					
 					loadFromBytes(new o);
 				}
 				else
 				{
-					trace("UNKNOWN RESOURCE LISTED @ libraryURLs[", URLIndex, "]", flash.utils.describeType(o));
+					log("UNKNOWN RESOURCE LISTED @ libraryURLs[", URLIndex, "]", flash.utils.describeType(o));
 					loadNext();
 				}
-				
 			}
 			else
 			{
-				trace(tname,"[CRITICAL ERROR] no alternative library paths last [APPLICATION FAIL]");
+				log(tname,"[CRITICAL ERROR] no alternative library paths last [APPLICATION FAIL]");
+				xerror = true;
 				finalize();
 			}
 		}
-		
 		private function loadURL(url:String):void
 		{
 			if(urlReq == null)
@@ -263,7 +275,7 @@ package axl.utils
 				urlReq = new URLRequest();
 			}
 			urlReq.url = url + (isLocal ? "":'?caheBust=' + String(new Date().time));
-			trace(tname,"[loading]",  urlReq.url );
+			log(tname,"[loading]",  urlReq.url );
 			if(urlLoader == null)
 			{
 				urlLoader = new URLLoader(urlReq);
@@ -275,6 +287,7 @@ package axl.utils
 		
 		private function onURLComplete(e:Event):void
 		{
+			log(tname, '[URLload complete .. LOADING FROM BYTES]');
 			xbytes =  urlLoader.data;
 			loadFromBytes(xbytes);
 		}
@@ -284,20 +297,27 @@ package axl.utils
 			if(libraryLoader == null)
 			{
 				xlibraryLoader = new Loader();
+				context = new LoaderContext(false);
 				
 				lInfo = libraryLoader.contentLoaderInfo;
-				lInfo.uncaughtErrorEvents.addEventListener(UncaughtErrorEvent.UNCAUGHT_ERROR, onError);
+				if(handleUncaughtErrors)
+					lInfo.uncaughtErrorEvents.addEventListener(UncaughtErrorEvent.UNCAUGHT_ERROR, onError);
 				this.addListeners(lInfo,onLoaderComplete,onError);
 				
-				params = new Object();
-				params.fileName = fileName;
-				params.whatEver = "test";
-				context = new LoaderContext(false);
+				log(tname,"setting context parameters");
+				if(contextParameters != null)
+				{
+					params = contextParameters;
+				}
+				else
+				{
+					params  = { fileName : fileName };
+				}
 				
 				if(domainType is ApplicationDomain)
 				{
 					context.applicationDomain = domainType as ApplicationDomain;
-					trace(tname,"LOADING TO SPECIFIC APPLICATION DOMAIN");
+					log(tname,"LOADING TO SPECIFIC APPLICATION DOMAIN");
 				}
 				else
 				{
@@ -305,27 +325,27 @@ package axl.utils
 					{
 						case domain.coppyOfCurrent:
 							context.applicationDomain = new ApplicationDomain(ApplicationDomain.currentDomain);
-							trace(tname,"LOADING TO COPY OF CURRENT APPLICATION DOMAIN (loaded content can use parent classes, parent can't use childs classes other way than via class dict)")
+							log(tname,"LOADING TO COPY OF CURRENT APPLICATION DOMAIN (loaded content can use parent classes, parent can't use childs classes other way than via class dict)")
 							break;
 						case domain.current:
 							context.applicationDomain = ApplicationDomain.currentDomain;
-							trace(tname,"LOADING TO CURRENT APPLICATION DOMAIN (all shared, conflicts may occur)");
+							log(tname,"LOADING TO CURRENT APPLICATION DOMAIN (all shared, conflicts may occur)");
 							break;
 						case domain.separated:
 							context.applicationDomain = new ApplicationDomain(null);
-							trace(tname,"LOADING TO BRAND NEW APPLICATION DOMAIN (loaded content can't use parent's classes, parent can't use childs classes other way than via class dict. Watch your fonts.");
+							log(tname,"LOADING TO BRAND NEW APPLICATION DOMAIN (loaded content can't use parent's classes, parent can't use childs classes other way than via class dict. Watch your fonts.");
 							break;
 						case domain.loaderOwnerDomain:
 							context.applicationDomain = rootObj.loaderInfo.applicationDomain;
-							trace(tname,"LOADING TO loaderOwnerDomain DOMAIN.");
+							log(tname,"LOADING TO loaderOwnerDomain DOMAIN.");
 							break;
 						case domain.copyOfLoaderOwnerDomain:
 							context.applicationDomain = new ApplicationDomain(rootObj.loaderInfo.applicationDomain);
-							trace(tname,"LOADING TO copyOfLoaderOwnerDomain DOMAIN.");
+							log(tname,"LOADING TO copyOfLoaderOwnerDomain DOMAIN.");
 							break;
 						default:
 							context.applicationDomain =  lInfo.applicationDomain;
-							trace(tname,"LOADING TO loadee application domain?");
+							log(tname,"LOADING TO loadee application domain?");
 							break
 					}
 				}
@@ -334,20 +354,19 @@ package axl.utils
 				context.parameters = params;
 			}
 			
-			trace(tname,"[LOADED]", libraryURLs[URLIndex]);
 			libraryLoader.loadBytes(ba, context);
 		}
 		
 		private function onLoaderComplete(e:Event):void 
 		{
-			trace(tname, 'onLoaderComplete');
-			xloadedContentLoadderInfo = libraryLoader.loaderInfo;
+			log(tname, '[LOADED!]onLoaderComplete');
+			xloadedContentLoadderInfo = libraryLoader.contentLoaderInfo;
 			finalize(libraryLoader.contentLoaderInfo.applicationDomain);
 		}
 		
 		private function mapClasses(domain:ApplicationDomain):void
 		{
-			trace(tname, 'mapClasses');
+			log(tname, 'mapClasses');
 			var limited:Boolean = mapOnlyClasses is Array;
 			var targ:Object = limited ? mapOnlyClasses : domain.getQualifiedDefinitionNames();
 			var len:int = limited ? mapOnlyClasses.length : targ.length;
@@ -376,23 +395,30 @@ package axl.utils
 					mapped--;
 				}
 			}
-			trace(tname,"[MAPPED]", mapped, '/', len, 'Classes form loaded library ApplicationDomain', mapped < len ? n :n);
+			log(tname,"[MAPPED]", mapped, '/', len, 'Classes form loaded library ApplicationDomain', mapped < len ? n :n);
 		}
 		
 		private function onError(e:Object=null):void
 		{
-			if(e && e.hasOwnProperty('stopImmediatePropagation'))
+			log(tname,"[ERROR]");
+			
+			if(e && stopErrorPropagation && e.hasOwnProperty('stopImmediatePropagation'))
 			{
+				log(tname,'[stop error propagation]');
 				e.stopImmediatePropagation();
+			}
+			if(e && preventErrorDefaults && e.hasOwnProperty('preventDefault'))
+			{
+				log(tname,'[prevent default error behavior]');
 				e.preventDefault();
 			}
-			trace(tname,"[CAN'T LOAD LIBRARY]", urlReq.url, "\n", e);
-			if(libraryLoader)
+			log(tname,"[CAN'T LOAD LIBRARY]", urlReq.url, "\n", e, e is Error ? Error(e).getStackTrace() : '');
+			if(libraryLoader && unloadOnErrors)
 			{
-				libraryLoader.unload();
+				log(tname,'[UNLOAD ..LOADING NEXT]');
 				libraryLoader.unloadAndStop();
+				loadNext();
 			}
-			loadNext();
 		}
 		
 		private function addListeners(dispatcher:IEventDispatcher,onUrlLoaderComplete:Function,onError:Function):void
@@ -413,7 +439,7 @@ package axl.utils
 		
 		private function destroy(clearBytes:Boolean=false):void
 		{
-			trace(tname, 'destroy');
+			log(tname, 'destroy');
 			removeListeners(libraryLoader, onLoaderComplete, onError);
 			removeListeners(urlLoader, onURLComplete, onError);
 			//libraryLoader;
