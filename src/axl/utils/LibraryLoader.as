@@ -3,8 +3,10 @@ package axl.utils
 	import flash.display.Loader;
 	import flash.display.LoaderInfo;
 	import flash.events.Event;
+	import flash.events.HTTPStatusEvent;
 	import flash.events.IEventDispatcher;
 	import flash.events.IOErrorEvent;
+	import flash.events.ProgressEvent;
 	import flash.events.SecurityErrorEvent;
 	import flash.events.UncaughtErrorEvent;
 	import flash.net.URLLoader;
@@ -15,6 +17,7 @@ package axl.utils
 	import flash.system.Security;
 	import flash.utils.ByteArray;
 	import flash.utils.describeType;
+
 	/** This class loads anything you specify in <code>libraryURLs</code> to the ApplicationDomain you specify in <code>domainType</code> via <code>domain</code>
 	 * <br> e.g. <code>instance.domainType = instance.domain.coppyOfCurrent</code><br>
 	 * <br>Once ready it will execute <code>instance.onReady</code> callback if set.
@@ -42,7 +45,7 @@ package axl.utils
 		private var params:Object;
 		private var lInfo:LoaderInfo;
 		private var getStageTimeout:uint;
-		protected var tname:String = '[LibraryLoader 0.0.13]';
+		protected var tname:String = '[LibraryLoader 0.0.15]';
 		
 		private var framesCounter:int;
 		private var isLaunched:Boolean;
@@ -136,7 +139,7 @@ package axl.utils
 			log(tname + ' loaderInfo.url',rootObj.loaderInfo.url);
 			log(tname + ' loaderInfo.parameters.fileName',rootObj.loaderInfo.parameters.fileName);
 			log(tname + ' loaderInfo.parameters.loadedURL',rootObj.loaderInfo.parameters.loadedURL);
-			isLocal = rootObj.loaderInfo.url.match(/^(file|app):/i);
+			isLocal = rootObj.loaderInfo.url.match(/^(file|app).*:/i);
 			
 			if(rootObj.loaderInfo.parameters.loadedURL != null)
 			{
@@ -275,16 +278,21 @@ package axl.utils
 				urlReq = new URLRequest();
 			}
 			urlReq.url = url + (isLocal ? "":'?caheBust=' + String(new Date().time));
-			log(tname,"[loading]",  urlReq.url );
 			if(urlLoader == null)
 			{
-				urlLoader = new URLLoader(urlReq);
+				urlLoader = new URLLoader();
 				urlLoader.dataFormat = URLLoaderDataFormat.BINARY;
-				addListeners(urlLoader,onURLComplete,onError);
+				addURLListeners(urlLoader,onURLComplete,onError);
 			}
-			urlLoader.load(urlReq);
+			log(tname,"[loading]",  urlReq.url);
+			
+			try { urlLoader.load(urlReq) }
+			catch(e:Object) { log(tname, "ERROR", e) }
 		}
 		
+		private function onHTTPStatus(e:Event):void { log(e) }
+		private function onURLOpen(e:Event):void { log(e) }
+		private function onProgress(e:Event):void { log(e) }		
 		private function onURLComplete(e:Event):void
 		{
 			log(tname, '[URLload complete .. LOADING FROM BYTES]');
@@ -437,11 +445,39 @@ package axl.utils
 			dispatcher.removeEventListener(Event.COMPLETE, onUrlLoaderComplete);
 		}
 		
+		private function addURLListeners(dispatcher:IEventDispatcher,onUrlLoaderComplete:Function,onError:Function):void
+		{
+			if(dispatcher == null)
+			{
+				log("URL DISPATCHER NOT DEFINED");
+				return;
+			}
+			dispatcher.addEventListener(Event.COMPLETE, onUrlLoaderComplete);
+			dispatcher.addEventListener(HTTPStatusEvent.HTTP_RESPONSE_STATUS, onHTTPStatus);
+			dispatcher.addEventListener(HTTPStatusEvent.HTTP_STATUS, onHTTPStatus);
+			dispatcher.addEventListener(IOErrorEvent.IO_ERROR, onError);
+			dispatcher.addEventListener(Event.OPEN, onURLOpen);
+			dispatcher.addEventListener(ProgressEvent.PROGRESS, onProgress);
+			dispatcher.addEventListener(SecurityErrorEvent.SECURITY_ERROR, onError);
+		}
+		
+		private function removeURLListeners(dispatcher:IEventDispatcher,onUrlLoaderComplete:Function,onError:Function):void
+		{
+			if(dispatcher == null) return;
+			dispatcher.removeEventListener(Event.COMPLETE, onUrlLoaderComplete);
+			dispatcher.removeEventListener(HTTPStatusEvent.HTTP_RESPONSE_STATUS, onHTTPStatus);
+			dispatcher.removeEventListener(HTTPStatusEvent.HTTP_STATUS, onHTTPStatus);
+			dispatcher.removeEventListener(IOErrorEvent.IO_ERROR, onError);
+			dispatcher.removeEventListener(Event.OPEN, onURLOpen);
+			dispatcher.removeEventListener(ProgressEvent.PROGRESS, onProgress);
+			dispatcher.removeEventListener(SecurityErrorEvent.SECURITY_ERROR, onError);
+		}
+		
 		private function destroy(clearBytes:Boolean=false):void
 		{
 			log(tname, 'destroy');
 			removeListeners(libraryLoader, onLoaderComplete, onError);
-			removeListeners(urlLoader, onURLComplete, onError);
+			removeURLListeners(urlLoader, onURLComplete, onError);
 			//libraryLoader;
 			if(bytes && clearBytes)
 			{
