@@ -15,6 +15,7 @@ package axl.utils
 	import flash.system.ApplicationDomain;
 	import flash.system.LoaderContext;
 	import flash.system.Security;
+	import flash.system.SecurityDomain;
 	import flash.utils.ByteArray;
 	import flash.utils.describeType;
 
@@ -360,9 +361,12 @@ package axl.utils
 				
 				context.allowCodeImport = true;
 				context.parameters = params;
+				//context.securityDomain = SecurityDomain.currentDomain;
 			}
-			
-			libraryLoader.loadBytes(ba, context);
+			try { 
+				libraryLoader.loadBytes(ba, context);
+				log(tname, "loading directive passed");
+			} catch(e:*) { log(e) }
 		}
 		
 		private function onLoaderComplete(e:Event):void 
