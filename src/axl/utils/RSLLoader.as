@@ -435,7 +435,7 @@ package axl.utils
 			}
 			try { 
 				libraryLoader.loadBytes(ba, context);
-				log(tname, "loading directive passed");
+				log(tname, "loading directive passed. Bytes:", ba.length);
 			} catch(e:*) { onError(e) }
 		}
 		
