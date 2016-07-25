@@ -38,13 +38,13 @@ package axl.utils
 	 * First loads binary conent via URLLoader, second loads from bytes with Loader. Also supports loading from
 	 * embedded assets (as class) and then first step is skipped.<br><br>
 	 * 
-	 * Once ready it will execute <code>instance.onReady</code> callback if set.<br
+	 * Once ready it will execute <code>instance.onReady</code> callback if set.<br>
 	 * Once onReady is called, you can access several properties of loaded content
 	 * <ul>
 	 * <li>instance.bytes</li>
 	 * <li>instance.libraryLoader</li>
 	 * <li>instance.classDictionary</li>
-	 * <li>instance.loadedContentLoadderInfo</li>
+	 * <li>instance.loadedContentLoaderInfo</li>
 	 * </ul>
 	 * <h1>Context Parameters</h1>
 	 * All parameters from query in URL are stripped out from initial URL but stored. The only valid parameter for first step
@@ -61,11 +61,11 @@ package axl.utils
 	 * </ul>
 	 * FileName parameter is ideal for stubs of which name is meaningfull. 
 	 * <h4>Example</h4>
-	 * <code>lloader= new LibraryLoader(this,trace);</code><br>
-	 * <code>lloader.domainType = lloader.domain.separated;</code><br>
-	 * <code>lloader.libraryURLs = newVersion ? [net,local] : [local,net];</code><br>
-	 * <code>lloader.onReady = onProgramLoaded;</code><br>
-	 * <code>lloader.load();</code><br>
+	 * <code>rslloader = new RSLLoader(this,trace);</code><br>
+	 * <code>rslloader.domainType = rslloader.domain.separated;</code><br>
+	 * <code>rslloader.libraryURLs = newVersion ? [net,local] : [local,net];</code><br>
+	 * <code>rslloader.onReady = onProgramLoaded;</code><br>
+	 * <code>rslloader.load();</code><br>
 	 * */
 	public class RSLLoader
 	{
@@ -77,7 +77,7 @@ package axl.utils
 		private var urlLoader:URLLoader;
 		private var urlReq:URLRequest;
 		private var URLIndex:int;
-		private var xloadedContentLoadderInfo:LoaderInfo;
+		private var xloadedContentLoaderInfo:LoaderInfo;
 		private var lInfo:LoaderInfo;
 		
 		private var context:LoaderContext;
@@ -153,7 +153,7 @@ package axl.utils
 		}
 		
 		/** Object LoaderInfo associated to newly loaded content. Available only <code>onReady</code> was fired and no error occured */
-		public function get loadedContentLoadderInfo():LoaderInfo { return xloadedContentLoadderInfo }
+		public function get loadedContentLoaderInfo():LoaderInfo { return xloadedContentLoaderInfo }
 		
 		/** Returns false from instantiation until call <code>load()</code> and after <code>onReady</code>, true during loading*/
 		public function get isLOADING():Boolean {return xisLOADING }
@@ -243,7 +243,7 @@ package axl.utils
 		 * is going to be used as a prefix for relative addresses defined in libraryURLs. Good for changing relative paths context when loaded by another app.</li>
 		 * <li>REQUESTER.loaderInfo.url - if none of above is present, fileName is deducted from standard flash url property (which,
 		 *  due to security reasons, may not supply relevant information in nested structures). </li>
-		 * <ul> */
+		 * </ul> */
 		protected function onLoaderInfoAvailable(e:Event=null):void
 		{
 			log(tname + '[onLoaderInfoAvailable]');
@@ -450,7 +450,7 @@ package axl.utils
 		private function onFromBytesComplete(e:Event):void 
 		{
 			log(tname, '[LOADED!]onLoaderComplete');
-			xloadedContentLoadderInfo = libraryLoader.contentLoaderInfo;
+			xloadedContentLoaderInfo = libraryLoader.contentLoaderInfo;
 			finalize(libraryLoader.contentLoaderInfo.applicationDomain); // 4
 		}
 		/** 3a Can be called from both URLLoader and Loader event listeners. Stops error propagation if set and requests 
