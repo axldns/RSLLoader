@@ -69,7 +69,7 @@ package axl.utils
 	 * */
 	public class RSLLoader
 	{
-		protected var tname:String = '[LibraryLoader 0.0.18]';
+		protected var tname:String = '[RSLLoader 0.0.18]';
 		private var rootObj:Object;
 		private var classDict:Object;
 		
@@ -81,7 +81,7 @@ package axl.utils
 		private var lInfo:LoaderInfo;
 		
 		private var context:LoaderContext;
-		private var paramsFromQuery:Array;
+		private var paramsFromQuery:Array=[];
 		private var params:Object;
 		private var xbytes:ByteArray;
 		private var xfileName:String;
@@ -94,18 +94,23 @@ package axl.utils
 		
 		/** Allows to pick ApplicationDomain to which loaded content is going to be put s*/
 		public var domain:DomainType = new DomainType();
+		
 		/** Callback to fire when content is loaded. It does fire even if error occured,as in this case, all alternative directiries were checked
 		 * and there's nothing else to do. */
 		public var onReady:Function;
+		
 		/** Array or vector of URLs String or other resources (alternative directions) to load content from. Highest priority has items on index 0. 
 		 * If assets from there are inaccessible and result in error, head moves to index 1 and continues loading. Once one element is loaded, queue does
 		 * not continue loading other listed elements. This is a concept of alternative directories rather than multi assets loader.  */
 		public var libraryURLs:Object;
+		
 		/** Determines how many frames application should wait if load requester (your parent swf) loaderInfo is not available. */
 		public var framesAwaitingLimit:int = 30;
+		
 		/** List classes you need from the resource you're trying to load, and RSLLoader will check if by any chance they're available in current 
 		 * application domain already, so loading external file may not be needed. This happens e.g. when multiple assets are trying to load same library. */
 		public var getFromCurrentAppDomainIfPresent:Array;
+		
 		/** Limit contents of your classDictionary for advanced distribution. If not defined - all classes available in loaded SWF will be mapped */
 		public var mapOnlyClasses:Array;
 		
@@ -113,19 +118,25 @@ package axl.utils
 		 * Use <code>instance.domain</code> to set it. Eg.:<br>
 		 * <code>instance.domainType = instance.domain.copyOfCurrent</code><br> */
 		public var domainType:Object = domain.copyOfCurrent;
+		
 		/** Additional parameters to pass to loader context, aside from the one which were included in query string */
 		public var contextParameters:Object;
+		
 		/** Function to log progress of RSLLoader. Must accept any arguments of any type, e.g. trace*/
 		public var log:Function;
+		
 		/** Determines if any uncaught, async errors from loaded content should be intercepted. If <code>unloadOnErrors=true</code> - 
 		 * it may unload contents half way through. Requires attention. @default false*/
 		public var handleUncaughtErrors:Boolean=false;
+		
 		/** Determines if errors whilst loading should be stopped in propagation and its default behavior prevented. 
 		 * If <code>handleUncaughtErrors=true</code> - applies also to errors during runtime. */
 		public var stopErrorBehaviors:Boolean=false;
+		
 		/** Determines if after errors whilst loading, content should be unloaded. 
 		 * If <code>handleUncaughtErrors=true</code> - applies also to errors during runtime. */
 		public var unloadOnErrors:Boolean=true;
+		
 		/** Determines if RSL swf should be loaded fresh every time (true) or can be cached one (false)*/
 		public var useCachebust:Boolean=true;
 		
