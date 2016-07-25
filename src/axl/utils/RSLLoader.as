@@ -69,7 +69,7 @@ package axl.utils
 	 * */
 	public class RSLLoader
 	{
-		protected var tname:String = '[RSLLoader 0.0.18]';
+		protected var tname:String = '[RSLLoader 0.0.19]';
 		private var rootObj:Object;
 		private var classDict:Object;
 		
@@ -385,14 +385,20 @@ package axl.utils
 					lInfo.uncaughtErrorEvents.addEventListener(UncaughtErrorEvent.UNCAUGHT_ERROR, onError);
 				this.addListeners(lInfo,onFromBytesComplete,onError); // 3.1, 3a
 				
+				// CONTEXT PARAMS
 				log(tname,"setting context parameters");
 				if(contextParameters != null)
 					params = contextParameters;
 				else
-					params  = {  };
+					params = {};
 				params.fileName = fileName;
 				includeQueryParams(params);
+				var p:String = '';
+				for(var s:String in params)
+					p += (s + ":" + (params[s] is String ? params[s] :"NOT A STRING")) + '\n';
+				log(tname,"Loading with params:\n", p);
 				
+				// DOMAIN
 				if(domainType is ApplicationDomain)
 				{
 					context.applicationDomain = domainType as ApplicationDomain;
@@ -614,9 +620,9 @@ package axl.utils
 			paramsFromQuery =[];
 			var q:int = url.indexOf('?');
 			if(q < 0) return url;
-			paramsFromQuery = url.substr(q+1).split(/(\&|=)/g);
-			url =  url.substr(0,q)
-			return null;
+			paramsFromQuery = url.substr(q+1).split(/[&=]/);
+			url =  url.substr(0,q);
+			return url;
 		}
 		
 		/** Fills up <code>params</code> assoc. array used for loader context parameters in loading from bytes process/ */
