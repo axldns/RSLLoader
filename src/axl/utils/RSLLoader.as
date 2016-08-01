@@ -34,7 +34,7 @@ package axl.utils
 	 * to load your RSL to separated application domain, eg. to avoid class conflicts when different assets have different 
 	 * versions of the same framework embedded in.<br><br>
 	 * 
-	 * It supports alternative directories to satisfy dispersed systems.
+	 * It supports alternative directories to satisfy dispersed systems and fallbacks.
 	 * <br>There are two methodologies 
 	 * to pick from, controlled by <code>twoStepLoading</code> property:<br><br>
 	 * <i>Two step loading</i> - loads binary conent via URLLoader first, then loads from bytes with Loader 
@@ -42,7 +42,7 @@ package axl.utils
 	 * Also supports loading from  embedded assets (as class) and then first step is skipped.<br>
 	 * <i>One Step Loading</i> in the other hand, sorts everything in regular URLRequest passed to Loader but security errors are more likely to happen.<br>
 	 * <br>
-	 * Once loaded executes <code>instance.onReady</code> callback if set.<br>
+	 * Once loaded, executes <code>instance.onReady</code> callback if set.<br>
 	 * Once onReady is called, you can access several properties of loaded content
 	 * <ul>
 	 * <li>instance.bytes</li>
@@ -65,11 +65,7 @@ package axl.utils
 	 * </ul>
 	 * FileName parameter is ideal for stubs of which name is meaningfull. 
 	 * <h4>Example</h4>
-	 * <code>rslloader = new RSLLoader(this);</code><br>
-	 * <code>rslloader.domainType = rslloader.domain.separated;</code><br>
-	 * <code>rslloader.libraryURLs = newVersion ? [net,local] : [local,net];</code><br>
-	 * <code>rslloader.onReady = onProgramLoaded;</code><br>
-	 * <code>rslloader.load();</code><br>
+	 * <pre>rslloader = new RSLLoader(this);<br>rslloader.domainType = rslloader.domain.separated;<br>rslloader.libraryURLs = newVersion ? [net,local] : [local,net];<br>rslloader.onReady = onProgramLoaded;<br>rslloader.load();</pre>
 	 * */
 	public class RSLLoader
 	{
