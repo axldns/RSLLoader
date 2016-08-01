@@ -37,7 +37,7 @@
     <sourceAttachmentPath/>
   </compiler>
   <applications>
-    <application path="LibraryLoader.as"/>
+    <application path="RSLLoader.as"/>
   </applications>
   <modules/>
   <workers/>

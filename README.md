@@ -1,12 +1,15 @@
-[RSLLoader](http://axldns.com/docs/axl/utils/RSLLoader.html) - flex alternative
+[RSLLoader](http://axldns.com/docs/axl/utils/RSLLoader.html) - runtime shared library loader
 ---------
 
 Helps you to load Runtime Shared Library from`libraryURLs` to the ApplicationDomain you specify in `domainType` via domain. 
 
 It maps classes from loaded content to `classDictionary` assoc array. This allows to use these even if you decide to load your RSL to separated application domain, eg. to avoid class conflicts when different assets have different versions of the same framework embedded in.
 
-It supports alternative directories (fallbacks) to satisfy dispersed systems. Loads swfs two step way: 
-First loads binary conent via URLLoader, second loads from bytes with Loader. Also supports loading from embedded assets (as class) and (first step is skipped).
+It supports alternative directories to satisfy dispersed systems and fallbacks. 
+There are two methodologies to pick from, controlled by `twoStepLoading` property:
+
+- Two step loading - loads binary conent via URLLoader first, then loads from bytes with Loader (may help with security issues but flash vars are only "attempted" to pass (don't work according to documentation). Also supports loading from embedded assets (as class) and then first step is skipped.
+- One Step Loading sorts everything in regular URLRequest passed to Loader but security errors are more likely to happen.
 
 Once complete, executes instance.`onReady` callback if set.
 Once `onReady` is called, you can access several properties of loaded content:
