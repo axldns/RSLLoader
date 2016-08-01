@@ -518,7 +518,7 @@ package axl.utils
 		private function mapClasses(domain:ApplicationDomain):void
 		{
 			var limited:Boolean = mapOnlyClasses is Array;
-			var targ:Object = limited ? mapOnlyClasses : domain.getQualifiedDefinitionNames();
+			var targ:Object = limited ? mapOnlyClasses : domain['getQualifiedDefinitionNames']();
 			var len:int = limited ? mapOnlyClasses.length : targ.length;
 			var n:String='';
 			var cn:String;
@@ -558,7 +558,7 @@ package axl.utils
 			if(getFromCurrentAppDomainIfPresent is Array && getFromCurrentAppDomainIfPresent.length > 0)
 			{
 				var cn:int;
-				var cdc:Vector.<String> = ApplicationDomain.currentDomain.getQualifiedDefinitionNames();
+				var cdc:Vector.<String> = ApplicationDomain.currentDomain['getQualifiedDefinitionNames']();
 				for(var i:int = 0, j:int = getFromCurrentAppDomainIfPresent.length; i <j;i++)
 				{
 					cn = cdc.indexOf(getFromCurrentAppDomainIfPresent[i]);
